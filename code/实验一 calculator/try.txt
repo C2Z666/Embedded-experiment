@@ -1,0 +1,139 @@
+#include <iostream>
+#include <stack>
+#include <string>
+#include <cctype>
+#include <cmath>
+#include <sstream>
+
+// 判断是否为运算符
+bool isOperator(char c) {
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+}
+
+// 获取运算符的优先级
+int precedence(char op) {
+    switch (op) {
+        case '+':
+        case '-': return 1;
+        case '*':
+        case '/': return 2;
+        case '^': return 3;
+        default: return 0;
+    }
+}
+
+// 判断是否为函数
+bool isFunction(const std::string& token) {
+    return token == "sin" || token == "cos" || token == "tan" || token == "log" || token == "sqrt";
+}
+
+// 将中缀表达式转换为后缀表达式
+std::string infixToPostfix(const std::string& infix) {
+    std::stack<std::string> stack;
+    std::string postfix;
+    std::string number;
+    std::string func;
+
+    for (size_t i = 0; i < infix.length(); ++i) {
+        char token = infix[i];
+
+        if (isspace(token)) {
+            continue;  // 跳过空白符
+        }
+
+        if (isdigit(token) || token == '.') {
+            number += token;  // 处理数字和小数点
+        } else {
+            if (!number.empty()) {
+                postfix += number + ' ';
+                number.clear();
+            }
+
+            if (isalpha(token)) {
+                func += token;  // 处理函数名
+                while (i + 1 < infix.length() && isalpha(infix[i + 1])) {
+                    func += infix[++i];
+                }
+                stack.push(func);
+                func.clear();
+            } else if (token == '(') {
+                stack.push(std::string(1, token));  // 左括号入栈
+            } else if (token == ')') {
+                while (!stack.empty() && stack.top() != "(") {
+                    postfix += stack.top() + ' ';
+                    stack.pop();
+                }
+                if (!stack.empty()) stack.pop();  // 弹出左括号
+                if (!stack.empty() && isFunction(stack.top())) {
+                    postfix += stack.top() + ' ';
+                    stack.pop();
+                }
+            } else if (isOperator(token)) {
+                if (token == '-' && (i == 0 || infix[i - 1] == '(' || isOperator(infix[i - 1]))) {
+                    postfix += '0';  // 处理负号：前面补0
+                }
+                while (!stack.empty() && precedence(stack.top()[0]) >= precedence(token)) {
+                    postfix += stack.top() + ' ';
+                    stack.pop();
+                }
+                stack.push(std::string(1, token));
+            }
+        }
+    }
+
+    if (!number.empty()) {
+        postfix += number + ' ';
+    }
+
+    while (!stack.empty()) {
+        postfix += stack.top() + ' ';
+        stack.pop();
+    }
+
+    return postfix;
+}
+
+// 计算后缀表达式
+double evaluatePostfix(const std::string& postfix) {
+    std::stack<double> evalStack;
+    std::istringstream iss(postfix);
+    std::string token;
+
+    while (iss >> token) {
+        if (isdigit(token[0]) || (token[0] == '-' && token.length() > 1)) {
+            evalStack.push(std::stod(token));
+        } else if (isOperator(token[0])) {
+            double b = evalStack.top(); evalStack.pop();
+            double a = evalStack.top(); evalStack.pop();
+            switch (token[0]) {
+                case '+': evalStack.push(a + b); break;
+                case '-': evalStack.push(a - b); break;
+                case '*': evalStack.push(a * b); break;
+                case '/': evalStack.push(a / b); break;
+                case '^': evalStack.push(std::pow(a, b)); break;  // 任意底数的指数运算
+            }
+        } else if (isFunction(token)) {
+            double a = evalStack.top(); evalStack.pop();
+            if (token == "sin") {
+                evalStack.push(std::sin(a));
+            } else if (token == "cos") {
+                evalStack.push(std::cos(a));
+            } else if (token == "tan") {
+                evalStack.push(std::tan(a));
+            } else if (token == "log") {
+                evalStack.push(std::log(a));
+            } else if (token == "sqrt") {
+                evalStack.push(std::sqrt(a));
+            }
+        }
+    }
+
+    return evalStack.top();
+}
+double gt(std::string infix)
+{
+    std::string postfix = infixToPostfix(infix);
+    double result = evaluatePostfix(postfix);
+    return result;
+}
+
